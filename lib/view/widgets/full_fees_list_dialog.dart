@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import '../../controller/fees_controller.dart';
 import 'pay_fee_dialog.dart';
+import 'payment_history_dialog.dart';
 
 class FullFeesListDialog extends StatefulWidget {
   final String title;
@@ -167,8 +168,8 @@ class _FullFeesListDialogState extends State<FullFeesListDialog>
                           columns: const [
                             DataColumn(label: Text('Roll No')),
                             DataColumn(label: Text('Student Name')),
-                            DataColumn(label: Text('Account Name')),
                             DataColumn(label: Text('Fees Type')),
+                            DataColumn(label: Text('Fee Month')),
                             DataColumn(label: Text('Total Fees')),
                             DataColumn(label: Text('Paid Amount')),
                             DataColumn(label: Text('Remaining Amount')),
@@ -186,7 +187,6 @@ class _FullFeesListDialogState extends State<FullFeesListDialog>
                                   ),
                                 ),
                                 DataCell(Text(fee['student_name'] ?? '')),
-                                DataCell(Text(fee['account_number'] ?? '')),
                                 DataCell(
                                   Container(
                                     padding: EdgeInsets.symmetric(
@@ -213,6 +213,7 @@ class _FullFeesListDialogState extends State<FullFeesListDialog>
                                     ),
                                   ),
                                 ),
+                                DataCell(Text(fee['fee_month'] ?? '')),
                                 DataCell(
                                   Text(
                                     'Rs. ${fee['amount'] ?? ''}',
@@ -264,15 +265,8 @@ class _FullFeesListDialogState extends State<FullFeesListDialog>
                                         )
                                       : IconButton(
                                           onPressed: () {
-                                            Get.snackbar(
-                                              'Fee Details',
-                                              'Detailed fee information will be shown in the next phase',
-                                              snackPosition:
-                                                  SnackPosition.BOTTOM,
-                                              backgroundColor:
-                                                  theme.colorScheme.secondary,
-                                              colorText:
-                                                  theme.colorScheme.onSecondary,
+                                            Get.dialog(
+                                              PaymentHistoryDialog(fee: fee),
                                             );
                                           },
                                           icon: Icon(
@@ -290,7 +284,7 @@ class _FullFeesListDialogState extends State<FullFeesListDialog>
                                                   BorderRadius.circular(8.r),
                                             ),
                                           ),
-                                          tooltip: 'View Fee Details',
+                                          tooltip: 'View Payment History',
                                         ),
                                 ),
                               ],
@@ -307,5 +301,15 @@ class _FullFeesListDialogState extends State<FullFeesListDialog>
         ),
       ),
     );
+  }
+
+  String _formatDate(String? dateStr) {
+    if (dateStr == null) return '';
+    try {
+      final date = DateTime.parse(dateStr);
+      return '${date.day.toString().padLeft(2, '0')}-${date.month.toString().padLeft(2, '0')}-${date.year}';
+    } catch (e) {
+      return '';
+    }
   }
 }

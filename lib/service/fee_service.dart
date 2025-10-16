@@ -16,6 +16,10 @@ class FeeService {
         due_date TEXT,
         paid_date TEXT,
         description TEXT,
+        paid_amount TEXT,
+        payment_mode TEXT,
+        remaining_amount TEXT,
+        fee_month TEXT,
         FOREIGN KEY (student_id) REFERENCES students (id)
       )
     ''');
@@ -133,18 +137,32 @@ class FeeService {
   Future<List<Map<String, dynamic>>> getPendingFeesWithStudentInfo(
     String feeType, {
     int? limit,
+    int? classId,
+    String? month,
   }) async {
     final db = await _dbService.database;
+    String whereClause =
+        'f.fee_type = ? AND f.status IN (\'pending\', \'partial\')';
+    List<Object> args = [feeType];
+
+    if (classId != null) {
+      whereClause += ' AND s.class_id = ?';
+      args.add(classId);
+    }
+    if (month != null && month.isNotEmpty) {
+      whereClause += ' AND f.due_date LIKE ?';
+      args.add('${month}%');
+    }
+
     final query =
         '''
       SELECT f.*, s.name as student_name, s.father_name, s.roll, s.account_number, s.class, s.section
       FROM fees f
       JOIN students s ON f.student_id = s.id
-      WHERE f.fee_type = ? AND f.status IN ('pending', 'partial')
+      WHERE $whereClause
       ORDER BY f.id DESC
       ${limit != null ? 'LIMIT ?' : ''}
     ''';
-    final List<Object> args = [feeType];
     if (limit != null) args.add(limit);
 
     return await db.rawQuery(query, args);
@@ -154,18 +172,32 @@ class FeeService {
   Future<List<Map<String, dynamic>>> getPaidFeesWithStudentInfo(
     String feeType, {
     int? limit,
+    int? classId,
+    String? month,
   }) async {
     final db = await _dbService.database;
+    String whereClause =
+        'f.fee_type = ? AND f.status IN (\'partial\', \'paid\')';
+    List<Object> args = [feeType];
+
+    if (classId != null) {
+      whereClause += ' AND s.class_id = ?';
+      args.add(classId);
+    }
+    if (month != null && month.isNotEmpty) {
+      whereClause += ' AND f.due_date LIKE ?';
+      args.add('${month}%');
+    }
+
     final query =
         '''
       SELECT f.*, s.name as student_name, s.father_name, s.roll, s.account_number, s.class, s.section
       FROM fees f
       JOIN students s ON f.student_id = s.id
-      WHERE f.fee_type = ? AND f.status IN ('partial', 'paid')
+      WHERE $whereClause
       ORDER BY f.id DESC
       ${limit != null ? 'LIMIT ?' : ''}
     ''';
-    final List<Object> args = [feeType];
     if (limit != null) args.add(limit);
 
     return await db.rawQuery(query, args);

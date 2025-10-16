@@ -10,6 +10,7 @@ class FeeModel {
   final String? paidAmount; // For partial payments
   final String? paymentMode; // 'cash', 'online'
   final String? remainingAmount; // For partial payments
+  final String? feeMonth; // For monthly fees, e.g., 'October 2025'
 
   FeeModel({
     this.id,
@@ -23,6 +24,7 @@ class FeeModel {
     this.paidAmount,
     this.paymentMode,
     this.remainingAmount,
+    this.feeMonth,
   });
 
   Map<String, dynamic> toMap() => {
@@ -37,6 +39,7 @@ class FeeModel {
     if (paidAmount != null) 'paid_amount': paidAmount,
     if (paymentMode != null) 'payment_mode': paymentMode,
     if (remainingAmount != null) 'remaining_amount': remainingAmount,
+    if (feeMonth != null) 'fee_month': feeMonth,
   };
 
   factory FeeModel.fromMap(Map<String, dynamic> map) => FeeModel(
@@ -51,6 +54,7 @@ class FeeModel {
     paidAmount: map['paid_amount'] as String?,
     paymentMode: map['payment_mode'] as String?,
     remainingAmount: map['remaining_amount'] as String?,
+    feeMonth: map['fee_month'] as String?,
   );
 
   // Helper methods

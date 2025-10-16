@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
@@ -20,17 +21,25 @@ class DatabaseService {
   }
 
   Future<Database> _openDatabase() async {
-    if (Platform.isWindows || Platform.isLinux) {
+    if (!kIsWeb && (Platform.isWindows || Platform.isLinux)) {
       sqfliteFfiInit();
       databaseFactory = databaseFactoryFfi;
     }
-    // Fall back to path_provider for app support dir; on Windows/Linux it's fine after ffi init
-    final dir = await getApplicationSupportDirectory();
-    final dbPath = p.join(dir.path, 'bright_sms.db');
+
+    String dbPath;
+    if (kIsWeb) {
+      // For web, use a simple path
+      dbPath = 'bright_sms.db';
+    } else {
+      // Fall back to path_provider for app support dir; on Windows/Linux it's fine after ffi init
+      final dir = await getApplicationSupportDirectory();
+      dbPath = p.join(dir.path, 'bright_sms.db');
+    }
+
     return databaseFactory.openDatabase(
       dbPath,
       options: OpenDatabaseOptions(
-        version: 10,
+        version: 12,
         onCreate: (db, version) async {
           await db.execute('''
             CREATE TABLE IF NOT EXISTS students (
@@ -97,6 +106,7 @@ class DatabaseService {
               paid_amount TEXT,
               payment_mode TEXT,
               remaining_amount TEXT,
+              fee_month TEXT,
               FOREIGN KEY (student_id) REFERENCES students (id)
             )
           ''');
@@ -197,6 +207,18 @@ class DatabaseService {
                 FOREIGN KEY (fee_id) REFERENCES fees (id)
               )
             ''');
+          }
+          if (oldVersion < 11) {
+            // Add fee_month column to fees table
+            await db.execute('ALTER TABLE fees ADD COLUMN fee_month TEXT');
+          }
+          if (oldVersion < 12) {
+            // Ensure fee_month column exists (in case onCreate was not updated)
+            try {
+              await db.execute('ALTER TABLE fees ADD COLUMN fee_month TEXT');
+            } catch (e) {
+              // Column already exists
+            }
           }
         },
       ),

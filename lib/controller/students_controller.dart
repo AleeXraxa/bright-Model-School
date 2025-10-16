@@ -1,13 +1,16 @@
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
 import '../model/student_model.dart';
+import '../model/fee_model.dart';
 import '../service/student_service.dart';
+import '../service/fee_service.dart';
 import 'fees_controller.dart';
 
 enum StudentFilter { all, class9, class10, class11, class12 }
 
 class StudentsController extends GetxController {
   final StudentService _studentService = StudentService();
+  final FeeService _feeService = FeeService();
   final Rx<StudentFilter> activeFilter = StudentFilter.all.obs;
   final RxInt rowsPerPage = 10.obs;
   final RxInt currentPage = 1.obs;
@@ -64,6 +67,7 @@ class StudentsController extends GetxController {
 
   Future<void> _initializeService() async {
     await _studentService.initialize();
+    await _feeService.initialize();
     _loadStudents();
   }
 
@@ -139,6 +143,32 @@ class StudentsController extends GetxController {
   Future<void> addStudent(StudentModel student) async {
     try {
       final id = await _studentService.insertStudent(student);
+
+      // Insert admission fee
+      final admissionFee = FeeModel(
+        studentId: id,
+        feeType: 'Admission',
+        amount: student.admissionFees,
+        status: 'pending',
+        // feeMonth: null for admission
+      );
+      await _feeService.insertFee(admissionFee);
+
+      // Insert monthly fees for current and next 12 months
+      final now = DateTime.now();
+      for (int i = 0; i < 12; i++) {
+        final feeDate = DateTime(now.year, now.month + i, 1);
+        final feeMonth = _getMonthYear(feeDate);
+        final monthlyFee = FeeModel(
+          studentId: id,
+          feeType: 'Monthly',
+          amount: student.monthlyFees,
+          status: 'pending',
+          feeMonth: feeMonth,
+        );
+        await _feeService.insertFee(monthlyFee);
+      }
+
       final newStudent = StudentModel(
         id: id,
         classId: student.classId,
@@ -178,6 +208,24 @@ class StudentsController extends GetxController {
       print('Error adding student: $e');
       rethrow;
     }
+  }
+
+  String _getMonthYear(DateTime date) {
+    const monthNames = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+    return '${monthNames[date.month - 1]} ${date.year}';
   }
 
   Future<void> updateStudent(StudentModel student) async {

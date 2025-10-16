@@ -18,6 +18,7 @@ class _FeesViewState extends State<FeesView>
   late final AnimationController _controller;
   late final Animation<double> _fade;
   late final Animation<Offset> _slide;
+  String activeSection = 'admission';
 
   @override
   void initState() {
@@ -40,6 +41,12 @@ class _FeesViewState extends State<FeesView>
     super.dispose();
   }
 
+  void _setActiveSection(String section) {
+    setState(() {
+      activeSection = section;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final FeesController controller = Get.find<FeesController>();
@@ -52,6 +59,7 @@ class _FeesViewState extends State<FeesView>
         child: Padding(
           padding: EdgeInsets.all(24.w),
           child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -89,6 +97,44 @@ class _FeesViewState extends State<FeesView>
                 ),
                 SizedBox(height: 32.h),
 
+                // Main Buttons
+                Row(
+                  children: [
+                    _FeeTypeButton(
+                      icon: '🎓',
+                      title: 'Admission Fees',
+                      isActive: activeSection == 'admission',
+                      onTap: () => _setActiveSection('admission'),
+                      theme: theme,
+                    ),
+                    SizedBox(width: 16.w),
+                    _FeeTypeButton(
+                      icon: '📅',
+                      title: 'Monthly Fees',
+                      isActive: activeSection == 'monthly',
+                      onTap: () => _setActiveSection('monthly'),
+                      theme: theme,
+                    ),
+                    SizedBox(width: 16.w),
+                    _FeeTypeButton(
+                      icon: '🧾',
+                      title: 'Exam Fees',
+                      isActive: activeSection == 'exam',
+                      onTap: () => _setActiveSection('exam'),
+                      theme: theme,
+                    ),
+                    SizedBox(width: 16.w),
+                    _FeeTypeButton(
+                      icon: '💰',
+                      title: 'Misc Fees',
+                      isActive: activeSection == 'misc',
+                      onTap: () => _setActiveSection('misc'),
+                      theme: theme,
+                    ),
+                  ],
+                ),
+                SizedBox(height: 32.h),
+
                 // Content wrapped in Obx to observe data changes
                 Obx(() {
                   if (controller.isLoading.value) {
@@ -99,60 +145,21 @@ class _FeesViewState extends State<FeesView>
                       ),
                     );
                   }
-                  return Column(
-                    children: [
-                      // Pending Admission Fees Section
-                      _FeesSection(
-                        title: 'Pending Admission Fees',
-                        subtitle:
-                            'Recent admission fee payments awaiting completion',
-                        fees: controller.admissionFees,
-                        fullFees: controller.admissionFees,
-                        theme: theme,
-                        delay: const Duration(milliseconds: 200),
-                        isPending: true,
-                      ),
-
-                      SizedBox(height: 32.h),
-
-                      // Pending Monthly Fees Section
-                      _FeesSection(
-                        title: 'Pending Monthly Fees',
-                        subtitle:
-                            'Recent monthly fee payments requiring attention',
-                        fees: controller.monthlyFees,
-                        fullFees: controller.monthlyFees,
-                        theme: theme,
-                        delay: const Duration(milliseconds: 400),
-                        isPending: true,
-                      ),
-
-                      SizedBox(height: 32.h),
-
-                      // Paid Admission Fees Section
-                      _FeesSection(
-                        title: 'Paid Admission Fees',
-                        subtitle: 'Recently completed admission fee payments',
-                        fees: controller.paidAdmissionFees,
-                        fullFees: controller.paidAdmissionFees,
-                        theme: theme,
-                        delay: const Duration(milliseconds: 600),
-                        isPending: false,
-                      ),
-
-                      SizedBox(height: 32.h),
-
-                      // Paid Monthly Fees Section
-                      _FeesSection(
-                        title: 'Paid Monthly Fees',
-                        subtitle: 'Recently completed monthly fee payments',
-                        fees: controller.paidMonthlyFees,
-                        fullFees: controller.paidMonthlyFees,
-                        theme: theme,
-                        delay: const Duration(milliseconds: 800),
-                        isPending: false,
-                      ),
-                    ],
+                  return AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 500),
+                    transitionBuilder: (child, animation) {
+                      return FadeTransition(
+                        opacity: animation,
+                        child: SlideTransition(
+                          position: Tween<Offset>(
+                            begin: const Offset(0, 0.1),
+                            end: Offset.zero,
+                          ).animate(animation),
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: _buildActiveSection(controller, theme),
                   );
                 }),
               ],
@@ -161,6 +168,45 @@ class _FeesViewState extends State<FeesView>
         ),
       ),
     );
+  }
+
+  Widget _buildActiveSection(FeesController controller, ThemeData theme) {
+    switch (activeSection) {
+      case 'admission':
+        return _FeeSubsection(
+          key: const ValueKey('admission'),
+          pendingFees: controller.admissionFees,
+          paidFees: controller.paidAdmissionFees,
+          feeType: 'admission',
+          theme: theme,
+        );
+      case 'monthly':
+        return _FeeSubsection(
+          key: const ValueKey('monthly'),
+          pendingFees: controller.monthlyFees,
+          paidFees: controller.paidMonthlyFees,
+          feeType: 'monthly',
+          theme: theme,
+        );
+      case 'exam':
+        return _FeeSubsection(
+          key: const ValueKey('exam'),
+          pendingFees: controller.examFees,
+          paidFees: controller.paidExamFees,
+          feeType: 'exam',
+          theme: theme,
+        );
+      case 'misc':
+        return _FeeSubsection(
+          key: const ValueKey('misc'),
+          pendingFees: controller.miscFees,
+          paidFees: controller.paidMiscFees,
+          feeType: 'misc',
+          theme: theme,
+        );
+      default:
+        return const SizedBox.shrink();
+    }
   }
 }
 
@@ -172,6 +218,8 @@ class _FeesSection extends StatefulWidget {
   final ThemeData theme;
   final Duration delay;
   final bool isPending;
+  final String feeType;
+  final Widget? trailing;
 
   const _FeesSection({
     required this.title,
@@ -181,6 +229,8 @@ class _FeesSection extends StatefulWidget {
     required this.theme,
     required this.delay,
     this.isPending = true,
+    required this.feeType,
+    this.trailing,
   });
 
   @override
@@ -269,12 +319,24 @@ class _FeesSectionState extends State<_FeesSection>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            widget.title,
-                            style: widget.theme.textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: widget.theme.colorScheme.onSurface,
-                            ),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  widget.title,
+                                  style: widget.theme.textTheme.titleLarge
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        color:
+                                            widget.theme.colorScheme.onSurface,
+                                      ),
+                                ),
+                              ),
+                              if (widget.trailing != null) ...[
+                                SizedBox(width: 16.w),
+                                widget.trailing!,
+                              ],
+                            ],
                           ),
                           SizedBox(height: 4.h),
                           Text(
@@ -291,29 +353,27 @@ class _FeesSectionState extends State<_FeesSection>
                         final controller = Get.find<FeesController>();
                         final subtitle = _getFullFeesSubtitle(widget.title);
                         List<Map<String, dynamic>> fullFees;
-
                         if (widget.isPending) {
-                          if (widget.title.contains('Admission')) {
-                            fullFees = await controller.getAllPendingFees(
-                              'admission',
-                            );
-                          } else {
-                            fullFees = await controller.getAllPendingFees(
-                              'monthly',
-                            );
-                          }
+                          fullFees = await controller.getAllPendingFees(
+                            widget.feeType,
+                            month: widget.feeType == 'monthly'
+                                ? controller.selectedMonth.value
+                                : null,
+                            classId: widget.feeType == 'monthly'
+                                ? controller.selectedClassModel?.id
+                                : null,
+                          );
                         } else {
-                          if (widget.title.contains('Admission')) {
-                            fullFees = await controller.getAllPaidFees(
-                              'admission',
-                            );
-                          } else {
-                            fullFees = await controller.getAllPaidFees(
-                              'monthly',
-                            );
-                          }
+                          fullFees = await controller.getAllPaidFees(
+                            widget.feeType,
+                            month: widget.feeType == 'monthly'
+                                ? controller.selectedMonth.value
+                                : null,
+                            classId: widget.feeType == 'monthly'
+                                ? controller.selectedClassModel?.id
+                                : null,
+                          );
                         }
-
                         Get.dialog(
                           FullFeesListDialog(
                             title: 'All ${widget.title}',
@@ -367,8 +427,8 @@ class _FeesSectionState extends State<_FeesSection>
                   columns: const [
                     DataColumn(label: Text('Roll No')),
                     DataColumn(label: Text('Student Name')),
-                    DataColumn(label: Text('Account Name')),
                     DataColumn(label: Text('Fees Type')),
+                    DataColumn(label: Text('Fee Month')),
                     DataColumn(label: Text('Total Fees')),
                     DataColumn(label: Text('Paid Amount')),
                     DataColumn(label: Text('Remaining Amount')),
@@ -384,7 +444,6 @@ class _FeesSectionState extends State<_FeesSection>
                           ),
                         ),
                         DataCell(Text(fee['student_name'] ?? '')),
-                        DataCell(Text(fee['account_number'] ?? '')),
                         DataCell(
                           Container(
                             padding: EdgeInsets.symmetric(
@@ -411,6 +470,7 @@ class _FeesSectionState extends State<_FeesSection>
                             ),
                           ),
                         ),
+                        DataCell(Text(fee['fee_month'] ?? '')),
                         DataCell(
                           Text(
                             'Rs. ${fee['amount'] ?? ''}',
@@ -532,18 +592,397 @@ class _FeesSectionState extends State<_FeesSection>
     return (paid / total).clamp(0.0, 1.0);
   }
 
+  String _formatDate(String? dateStr) {
+    if (dateStr == null) return '';
+    try {
+      final date = DateTime.parse(dateStr);
+      return '${date.day.toString().padLeft(2, '0')}-${date.month.toString().padLeft(2, '0')}-${date.year}';
+    } catch (e) {
+      return '';
+    }
+  }
+
   String _getFullFeesSubtitle(String title) {
     switch (title) {
       case 'Pending Admission Fees':
         return 'Complete list of all pending admission fee payments';
       case 'Pending Monthly Fees':
         return 'Complete list of all pending monthly fee payments';
+      case 'Pending Exam Fees':
+        return 'Complete list of all pending exam fee payments';
+      case 'Pending Misc Fees':
+        return 'Complete list of all pending misc fee payments';
       case 'Paid Admission Fees':
         return 'Complete list of all completed admission fee payments';
       case 'Paid Monthly Fees':
         return 'Complete list of all completed monthly fee payments';
+      case 'Paid Exam Fees':
+        return 'Complete list of all completed exam fee payments';
+      case 'Paid Misc Fees':
+        return 'Complete list of all completed misc fee payments';
       default:
         return '';
     }
+  }
+}
+
+class _FeeTypeButton extends StatefulWidget {
+  final String icon;
+  final String title;
+  final bool isActive;
+  final VoidCallback onTap;
+  final ThemeData theme;
+
+  const _FeeTypeButton({
+    required this.icon,
+    required this.title,
+    required this.isActive,
+    required this.onTap,
+    required this.theme,
+  });
+
+  @override
+  State<_FeeTypeButton> createState() => _FeeTypeButtonState();
+}
+
+class _FeeTypeButtonState extends State<_FeeTypeButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _animationController;
+  late final Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTapDown: (_) => _animationController.forward(),
+        onTapUp: (_) => _animationController.reverse(),
+        onTapCancel: () => _animationController.reverse(),
+        onTap: widget.onTap,
+        child: AnimatedScale(
+          scale: _scaleAnimation.value,
+          duration: const Duration(milliseconds: 200),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            padding: EdgeInsets.all(20.w),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: widget.isActive
+                    ? [
+                        widget.theme.colorScheme.primary.withOpacity(0.2),
+                        widget.theme.colorScheme.primary.withOpacity(0.1),
+                      ]
+                    : [
+                        widget.theme.colorScheme.surfaceVariant.withOpacity(
+                          0.5,
+                        ),
+                        widget.theme.colorScheme.surfaceVariant.withOpacity(
+                          0.2,
+                        ),
+                      ],
+              ),
+              borderRadius: BorderRadius.circular(16.r),
+              border: Border.all(
+                color: widget.isActive
+                    ? widget.theme.colorScheme.primary.withOpacity(0.3)
+                    : widget.theme.colorScheme.outline.withOpacity(0.2),
+                width: widget.isActive ? 2 : 1,
+              ),
+              boxShadow: widget.isActive
+                  ? [
+                      BoxShadow(
+                        color: widget.theme.colorScheme.primary.withOpacity(
+                          0.2,
+                        ),
+                        blurRadius: 12.r,
+                        offset: Offset(0, 6.h),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(widget.icon, style: TextStyle(fontSize: 32.sp)),
+                SizedBox(height: 8.h),
+                Text(
+                  widget.title,
+                  style: widget.theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: widget.isActive
+                        ? widget.theme.colorScheme.primary
+                        : widget.theme.colorScheme.onSurface,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FeeSubsection extends StatelessWidget {
+  final List<Map<String, dynamic>> pendingFees;
+  final List<Map<String, dynamic>> paidFees;
+  final String feeType;
+  final ThemeData theme;
+
+  const _FeeSubsection({
+    super.key,
+    required this.pendingFees,
+    required this.paidFees,
+    required this.feeType,
+    required this.theme,
+  });
+
+  String _getFeeTypeTitle(String type, bool isPending) {
+    final status = isPending ? 'Pending' : 'Paid';
+    final feeName = type == 'admission'
+        ? 'Admission'
+        : type == 'monthly'
+        ? 'Monthly'
+        : type == 'exam'
+        ? 'Exam'
+        : 'Misc';
+    return '$status $feeName Fees';
+  }
+
+  String _getFeeTypeSubtitle(String type, bool isPending) {
+    final status = isPending ? 'awaiting completion' : 'completed';
+    final feeName = type == 'admission'
+        ? 'admission'
+        : type == 'monthly'
+        ? 'monthly'
+        : type == 'exam'
+        ? 'exam'
+        : 'misc';
+    return 'Recent $feeName fee payments $status';
+  }
+
+  Widget _buildFilters() {
+    final controller = Get.find<FeesController>();
+
+    return Obx(() {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Class Grid
+          Text(
+            'Select Class',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
+          SizedBox(height: 16.h),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              crossAxisSpacing: 16.w,
+              mainAxisSpacing: 16.h,
+              childAspectRatio: 2.5,
+            ),
+            itemCount: controller.classList.length,
+            itemBuilder: (context, index) {
+              final classModel = controller.classList[index];
+              final isSelected =
+                  controller.selectedClassModel?.id == classModel.id;
+              return GestureDetector(
+                onTap: () {
+                  controller.selectedClassModel = classModel;
+                  controller.update();
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: EdgeInsets.all(16.w),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? theme.colorScheme.primary.withOpacity(0.1)
+                        : theme.colorScheme.surface,
+                    borderRadius: BorderRadius.circular(12.r),
+                    border: Border.all(
+                      color: isSelected
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.outline.withOpacity(0.3),
+                      width: isSelected ? 2 : 1,
+                    ),
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: theme.colorScheme.primary.withOpacity(0.2),
+                              blurRadius: 8.r,
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        '${classModel.className} ${classModel.section}',
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: isSelected
+                              ? theme.colorScheme.primary
+                              : theme.colorScheme.onSurface,
+                        ),
+                      ),
+                      SizedBox(height: 4.h),
+                      Text(
+                        '${classModel.studentCount.value} students',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+          SizedBox(height: 24.h),
+          // Month Dropdown and View Fees Button
+          Row(
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  decoration: InputDecoration(
+                    labelText: 'Select Month',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12.r),
+                    ),
+                    filled: true,
+                    fillColor: theme.colorScheme.surface,
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 16.w,
+                      vertical: 12.h,
+                    ),
+                  ),
+                  value: controller.selectedMonth.value.isEmpty
+                      ? null
+                      : controller.selectedMonth.value,
+                  items: controller.monthList.map((month) {
+                    return DropdownMenuItem<String>(
+                      value: month,
+                      child: Text(
+                        month,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      controller.selectedMonth.value = value;
+                    }
+                  },
+                  dropdownColor: theme.colorScheme.surface,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
+              ),
+              SizedBox(width: 16.w),
+              ElevatedButton.icon(
+                onPressed: () {
+                  if (controller.selectedClassModel != null &&
+                      controller.selectedMonth.value.isNotEmpty) {
+                    controller.fetchMonthlyFeesData();
+                  } else {
+                    Get.snackbar(
+                      'Selection Required',
+                      'Please select both class and month',
+                      snackPosition: SnackPosition.BOTTOM,
+                      backgroundColor: theme.colorScheme.error,
+                      colorText: theme.colorScheme.onError,
+                    );
+                  }
+                },
+                icon: Icon(Icons.search, size: 20.sp),
+                label: const Text('View Fees'),
+                style: ElevatedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 24.w,
+                    vertical: 12.h,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GetBuilder<FeesController>(
+      builder: (controller) {
+        final showSections =
+            feeType != 'monthly' ||
+            (controller.selectedClassModel != null &&
+                controller.selectedMonth.value.isNotEmpty);
+
+        return Column(
+          children: [
+            if (feeType == 'monthly') ...[
+              _buildFilters(),
+              SizedBox(height: 32.h),
+            ],
+            // Pending Fees Section
+            _FeesSection(
+              title: _getFeeTypeTitle(feeType, true),
+              subtitle: _getFeeTypeSubtitle(feeType, true),
+              fees: showSections ? pendingFees : [],
+              fullFees: pendingFees,
+              theme: theme,
+              delay: const Duration(milliseconds: 200),
+              isPending: true,
+              feeType: feeType,
+            ),
+
+            SizedBox(height: 32.h),
+
+            // Paid Fees Section
+            _FeesSection(
+              title: _getFeeTypeTitle(feeType, false),
+              subtitle: _getFeeTypeSubtitle(feeType, false),
+              fees: showSections ? paidFees : [],
+              fullFees: paidFees,
+              theme: theme,
+              delay: const Duration(milliseconds: 400),
+              isPending: false,
+              feeType: feeType,
+            ),
+          ],
+        );
+      },
+    );
   }
 }
